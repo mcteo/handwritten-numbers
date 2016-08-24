@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Handwritten Number Recognition</title>
+        <style type="text/css">
+            #title {
+                text-align: center;
+            }
+            #container {
+                width: 400px;
+                margin: auto;
+            }
+            #canvas {
+                border: 1px solid black;
+                display: block;
+                touch-action: none;
+            }
+            #button {
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+            #answer {
+                margin-left: 50px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+            #bgcanvas {
+                display: none;
+            }
+        </style>
+        <script src="https://code.jquery.com/jquery-3.1.0.min.js" integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s=" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="index.js"></script>
+    </head>
+    <body>
+        <div id="title">
+            <h2>Handwritten Number Recogniser</h2>
+            <h3>Powered by Neural Networks!</h3>
+        </div>
+        <div id="container">
+            <canvas id="canvas" width="400" height="400"></canvas>
+            <canvas id="bgcanvas"></canvas>
+            <div>
+                <button id="clear">Clear</button>
+                <button id="submit">Recognise</button>
+                Looks likes a: <span id="answer"></span>
+            </div>
+            <div id="info">
+                This is powered by a hand-coded multi-layered perceptron.
+                It was trained for <strong>20 epochs only</strong> on a
+                random 80% of the data found
+                <a href="https://archive.ics.uci.edu/ml/datasets/Semeion+Handwritten+Digit">here</a>,
+                so the accuracy isn't nearly as high as possible.
+            </div>
+        </div>
+    </body>
+</html>
