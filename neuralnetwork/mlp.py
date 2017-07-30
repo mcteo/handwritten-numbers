@@ -5,6 +5,12 @@ import random
 
 
 class MLP(object):
+    """
+    This is an implementation of a very basic Multi-Layered Perceptron (MLP).
+    Activation function is a basic sigmoid: 1 / (1 + e^-x)
+
+    More info on the inner workings of an MLP can be found in the README.md.
+    """
 
     def __init__(self, num_inputs, num_hidden, num_outputs):
 
@@ -61,6 +67,8 @@ class MLP(object):
     def backwards(self, targets):
         """
         Error propagation, or you know, learning.
+
+        Returns the sum of squared error between the target and output layer.
         """
         total_error = 0.0
 
@@ -92,7 +100,7 @@ class MLP(object):
             for j in range(self.num_inputs - 1):
                 self.lower_weights_delta[i][j] = upper_error * self.input_layer[j]
 
-        return total_error;
+        return total_error
 
     def update_weights(self, learning_rate):
         """
