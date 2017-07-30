@@ -1,14 +1,16 @@
-i#!/usr/bin/env python
+#!/usr/bin/env python
 
-from uuid import uuid4
 from PIL import Image
-from io import BytesIO
-import json
 import base64
-import cPickle
 import cgi
+import cPickle
+import io
+import json
+import uuid
 
 
+# whether we should save the various steps of the image processing to disk
+# very useful when debugging to ensure the images look valid.
 SAVE_IMAGES = False
 
 
@@ -20,72 +22,95 @@ def process_image(serialised_image_data):
       * binary thresholds it
       * applies it to the neural network
     """
-
-    image_id = str(uuid4())
+    image_id = str(uuid.uuid4())
 
     original_image = deserialise_image(serialised_image_data)
+
     if SAVE_IMAGES:
-        original_image.save(image_id + "-original.png")
+        original_image.save("%s.original.png" % (image_id,))
+
+    # TODO: this scaling is a bad approach since it often distorts the image,
+    # for example, the number one could be stretched horizontally, beyond
+    # recognition. A better approach would be to scale the largest dimension
+    # to 16px, and center along the smaller dimension, padding with whitespace.
 
     # resize image to 16 * 16
     resized_image = original_image.resize((16, 16))
-    # NEAREST, BILINEAR, BICUBIC, ANTIALIAS
+
     if SAVE_IMAGES:
-        resized_image.save(image_id + "-resized.png")
+        resized_image.save("%s.resized.png" % (image_id,))
 
     # binary threshold image (along original threshold)
     bw_image = resized_image \
         .convert("L") \
         .point(lambda pixel: 0 if pixel < 128 else 255, "1")
+
     if SAVE_IMAGES:
-        bw_image.save(image_id + "-resized-bw.png")
+        bw_image.save("%s.bw.png" % (image_id,))
 
     # prepare for neural network
-    binary_image_data = list(bw_image.getdata())
-    binary_image_data = map(lambda x: 0 if x > 127 else 1, binary_image_data)
+    binary_image_data = map(lambda x: 0 if x > 127 else 1, bw_image.getdata())
 
     return binary_image_data
 
 
 def deserialise_image(data):
     """
+    Turns the provided base64 encoded data into an PIL Image.
     """
     if "data:image" in data:
         data = data[data.find(",") + 1:]
 
-    return Image.open(BytesIO(base64.b64decode(data)))
+    return Image.open(io.BytesIO(base64.urlsafe_b64decode(data)))
 
 
-if __name__ == "__main__":
+def predict_image(serialised_image):
+    """
+    Decodes the given image data and use it to generate a
+    prediction of the number it indicates.
+    """
+    network_input = process_image(serialised_image)
 
-    post_data = cgi.FieldStorage()
+    with open("trained_network.pickle", "r") as fin:
+        trained_network = cPickle.load(fin)
 
-    # 404
-    if "img" not in get_data.keys():
-        print "Status: 404 Not Found"
+    trained_network.forward(network_input)
+    output_layer = trained_network.output_layer
+
+    return output_layer.index(max(output_layer))
+
+
+def respond_to_request():
+    """
+    The main body of the CGI script.
+    """
+    form_data = cgi.FieldStorage()
+
+    # we only want to respond to requests that send an image
+    if "img" not in form_data.keys():
+        print "Status: 400 Bad Request"
         print
 
         exit()
 
     try:
-        serialised_image_data = str(get_data["img"].value).strip()
-        network_input = process_image(serialised_image_data)
+        # get the image data
+        serialised_image_data = str(form_data["img"].value).strip()
+        response = predict_image(serialised_image_data)
 
-        with open("trained_network.pickle", "r") as fin:
-            trained_network = cPickle.load(fin)
-
-        trained_network.forward(network_input)
-        output = trained_network.output_layer
-        prediction = output.index(max(output))
-
+        # send headers
         print "Content-type: aplication/json"
         print
 
+        # send the result
         print json.dumps({
-            "prediction": str(prediction),
-            "output": output,           
+            "output": response,
         })
 
     except Exception:
         print "Status: 500 Internal Server Error"
         print
+
+
+if __name__ == "__main__":
+    respond_to_request()
