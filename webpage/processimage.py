@@ -11,13 +11,14 @@ import uuid
 
 # whether we should save the various steps of the image processing to disk
 # very useful when debugging to ensure the images look valid.
-SAVE_IMAGES = False
+SAVE_IMAGES = True
 
 
 def process_image(serialised_image_data):
     """
     Takes a base64 encoded image:
       * decodes it
+      * centers it
       * scales it
       * binary thresholds it
       * applies it to the neural network
@@ -29,13 +30,22 @@ def process_image(serialised_image_data):
     if SAVE_IMAGES:
         original_image.save("%s.original.png" % (image_id,))
 
-    # TODO: this scaling is a bad approach since it often distorts the image,
-    # for example, the number one could be stretched horizontally, beyond
-    # recognition. A better approach would be to scale the largest dimension
-    # to 16px, and center along the smaller dimension, padding with whitespace.
+    # center the image, by pasting it on to an ideal background size
+    width, height = original_image.size
+    if height >= width:
+        centered_image = Image.new("RGB", (height, height), (255, 255, 255))
+        offset_x = (height - width) / 2
+        centered_image.paste(original_image, (offset_x, 0))
+    else:
+        centered_image = Image.new("RGB", (width, width), (255, 255, 255))
+        offset_y = (width - height) / 2
+        centered_image.paste(original_image, (0, offset_y))
+
+    if SAVE_IMAGES:
+        centered_image.save("%s.centered.png" % (image_id,))
 
     # resize image to 16 * 16
-    resized_image = original_image.resize((16, 16))
+    resized_image = centered_image.resize((16, 16))
 
     if SAVE_IMAGES:
         resized_image.save("%s.resized.png" % (image_id,))
